@@ -3,27 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Greeting</title>
+    <title>Hi There!</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        /* Set full-page background and center content */
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #000033; /* Dark blue background for night sky effect */
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
         }
+        /* Container for star elements */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allow clicks to pass through to elements below */
+        }
+        /* Individual star styling */
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite;
+        }
+        /* Twinkle animation for stars */
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+        /* Styling for the greeting text */
         .greeting {
-            font-size: 24px;
-            color: #333;
+            font-size: 28px;
+            color: white;
             text-align: center;
+            z-index: 10;
+            cursor: pointer;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            transition: transform 0.5s ease-out; /* Smooth transition for rotation */
+        }
+        /* Spin animation for the greeting */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div class="greeting">
-        Hi there, you're doing great!
-    </div>
+    <div class="stars"></div>
+    <div class="greeting">Hi there, you're doing great!</div>
+    <script>
+        // Create sparkling stars
+        const starsContainer = document.querySelector('.stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.width = star.style.height = Math.random() * 3 + 'px'; // Random star size
+            star.style.left = Math.random() * 100 + '%'; // Random horizontal position
+            star.style.top = Math.random() * 100 + '%'; // Random vertical position
+            star.style.animationDelay = Math.random() * 2 + 's'; // Random twinkle delay
+            starsContainer.appendChild(star);
+        }
+
+        const greeting = document.querySelector('.greeting');
+        let isSpinning = false;
+        let spinTimeout;
+
+        // Function to start spinning
+        function startSpin() {
+            if (!isSpinning) {
+                isSpinning = true;
+                greeting.style.animation = 'spin 2s linear';
+                // Ensure at least one full spin
+                spinTimeout = setTimeout(() => {
+                    greeting.style.animation = 'none';
+                    // Use transition to smoothly return to original position
+                    greeting.style.transform = 'rotate(0deg)';
+                    isSpinning = false;
+                }, 2000); // 2000ms = 2s, the duration of one spin
+            }
+        }
+
+        // Start spin on hover
+        greeting.addEventListener('mouseenter', startSpin);
+
+        // If mouse leaves before spin completes, let it finish
+        greeting.addEventListener('mouseleave', () => {
+            if (isSpinning) {
+                // Do nothing, let the spin complete
+            } else {
+                // If not spinning, reset to original position
+                greeting.style.transform = 'rotate(0deg)';
+            }
+        });
+
+        // Toggle rotation on click (for mobile devices)
+        greeting.addEventListener('click', () => {
+            if (isSpinning) {
+                // If already spinning, do nothing
+            } else {
+                startSpin();
+            }
+        });
+    </script>
 </body>
 </html>
