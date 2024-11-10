@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speed Hamster</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+        }
+
+        .title {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .subtitle {
+            color: #4a5568;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .hamster-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 2rem auto;
+        }
+
+        .wheel {
+            width: 200px;
+            height: 200px;
+            border: 15px solid #805ad5;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            transition: border-color 0.3s;
+        }
+
+        .speed-btn {
+            background-color: #805ad5;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .speed-btn:hover {
+            background-color: #6b46c1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+        }
+
+        .speed-display {
+            font-size: 1.5rem;
+            color: #4a5568;
+            margin: 1rem 0;
+            transition: color 0.3s;
+        }
+
+        @keyframes spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes counter-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
+        }
+
+        @keyframes run {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.95); }
+        }
+
+        @keyframes frontLegRun {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(25deg); }
+            75% { transform: rotate(-25deg); }
+        }
+
+        @keyframes backLegRun {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-25deg); }
+            75% { transform: rotate(25deg); }
+        }
+
+        @keyframes tailWag {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-15deg); }
+        }
+
+        @keyframes chaos-spin {
+            0% { transform: rotate(0deg) translateY(-115px); }
+            25% { transform: rotate(270deg) translateY(-95px); }
+            50% { transform: rotate(720deg) translateY(-125px); }
+            75% { transform: rotate(1080deg) translateY(-105px); }
+            100% { transform: rotate(1440deg) translateY(-115px); }
+        }
+
+        @keyframes chaos-squish {
+            0% { transform: scale(1, 1); }
+            25% { transform: scale(1.1, 0.9); }
+            50% { transform: scale(0.9, 1.1); }
+            75% { transform: scale(1.2, 0.8); }
+            100% { transform: scale(1, 1); }
+        }
+
+        .hamster-wrapper {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 0;
+            height: 0;
+        }
+
+        .hamster {
+            position: absolute;
+            left: 0;
+            bottom: -115px;
+            transform-origin: center;
+            animation: run 0.4s linear infinite;
+        }
+
+        .front-leg {
+            transform-origin: top center;
+            animation: frontLegRun 0.2s linear infinite;
+        }
+
+        .back-leg {
+            transform-origin: top center;
+            animation: backLegRun 0.2s linear infinite;
+        }
+
+        .tail {
+            transform-origin: center left;
+            animation: tailWag 0.4s linear infinite;
+        }
+
+        .wheel::before,
+        .wheel::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #805ad5;
+            transition: background-color 0.3s;
+        }
+
+        .wheel::before {
+            width: 100%;
+            height: 4px;
+        }
+
+        .wheel::after {
+            width: 4px;
+            height: 100%;
+        }
+
+        .chaos-mode .speed-display {
+            color: #e53e3e;
+            animation: chaos-squish 0.5s linear infinite;
+        }
+
+        .chaos-mode .wheel {
+            border-color: #e53e3e !important;
+        }
+
+        .chaos-mode .wheel::before,
+        .chaos-mode .wheel::after {
+            background-color: #e53e3e !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🐹 Speed Hamster!</h1>
+        <p class="subtitle">Click the button to make the hamster run faster!</p>
+        
+        <div class="hamster-container">
+            <div class="wheel">
+                <div class="hamster-wrapper">
+                    <svg viewBox="0 0 100 100" width="100" height="100" class="hamster">
+                        <!-- Body -->
+                        <g class="body">
+                            <ellipse cx="50" cy="50" rx="20" ry="15" fill="#DEB887"/>
+                            <!-- Tail -->
+                            <path class="tail" d="M30 50 Q25 50 20 45" stroke="#DEB887" stroke-width="3" fill="none"/>
+                            <!-- Back legs -->
+                            <g class="back-leg">
+                                <line x1="35" y1="60" x2="35" y2="70" stroke="#CD853F" stroke-width="4" stroke-linecap="round"/>
+                                <line x1="45" y1="60" x2="45" y2="70" stroke="#CD853F" stroke-width="4" stroke-linecap="round"/>
+                            </g>
+                            <!-- Front legs -->
+                            <g class="front-leg">
+                                <line x1="55" y1="60" x2="55" y2="70" stroke="#CD853F" stroke-width="4" stroke-linecap="round"/>
+                                <line x1="65" y1="60" x2="65" y2="70" stroke="#CD853F" stroke-width="4" stroke-linecap="round"/>
+                            </g>
+                        </g>
+                        <!-- Head -->
+                        <g>
+                            <circle cx="75" cy="50" r="12" fill="#DEB887"/>
+                            <!-- Ears -->
+                            <circle cx="80" cy="42" r="6" fill="#CD853F"/>
+                            <circle cx="70" cy="42" r="6" fill="#CD853F"/>
+                            <!-- Eyes -->
+                            <circle cx="78" cy="48" r="2" fill="black"/>
+                            <circle cx="72" cy="48" r="2" fill="black"/>
+                            <!-- Nose -->
+                            <circle cx="83" cy="52" r="1.5" fill="pink"/>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="speed-display">Speed: <span id="speed-value">1</span>x</div>
+        <button class="speed-btn" id="speed-btn">Speed Up! 🏃‍♂️</button>
+    </div>
+
+    <script>
+        const container = document.querySelector('.container');
+        const wheel = document.querySelector('.wheel');
+        const hamsterWrapper = document.querySelector('.hamster-wrapper');
+        const hamster = document.querySelector('.hamster');
+        const speedBtn = document.getElementById('speed-btn');
+        const speedValue = document.getElementById('speed-value');
+        const frontLeg = document.querySelector('.front-leg');
+        const backLeg = document.querySelector('.back-leg');
+        const tail = document.querySelector('.tail');
+        
+        let speed = 1;
+        let hue = 280;
+        let chaosMode = false;
+
+        updateAnimations();
+
+        function updateAnimations() {
+            const duration = 2 / speed;
+            
+            if (speed === 10 && !chaosMode) {
+                // Enter chaos mode!
+                chaosMode = true;
+                container.classList.add('chaos-mode');
+                
+                // Stop normal running animations
+                hamsterWrapper.style.animation = 'none';
+                hamster.style.animation = 'chaos-squish 0.2s linear infinite';
+                frontLeg.style.animation = 'none';
+                backLeg.style.animation = 'none';
+                tail.style.animation = 'none';
+                
+                // Start chaos spin
+                hamster.style.position = 'absolute';
+                hamster.style.bottom = '0';
+                hamster.style.animation = 'chaos-spin 1s linear infinite';
+                
+                // Super fast wheel spin
+                wheel.style.animation = `spin ${duration/2}s linear infinite`;
+                
+                // Add dizzy eyes
+                document.querySelectorAll('circle[fill="black"]').forEach(eye => {
+                    eye.style.animation = 'chaos-squish 0.2s linear infinite';
+                });
+                
+            } else if (speed < 10) {
+                // Normal running mode
+                chaosMode = false;
+                container.classList.remove('chaos-mode');
+                
+                wheel.style.animation = `spin ${duration}s linear infinite`;
+                hamsterWrapper.style.animation = `counter-spin ${duration}s linear infinite`;
+                
+                const runDuration = 0.4 / speed;
+                hamster.style.animation = `run ${runDuration}s linear infinite`;
+                frontLeg.style.animation = `frontLegRun ${runDuration/2}s linear infinite`;
+                backLeg.style.animation = `backLegRun ${runDuration/2}s linear infinite`;
+                tail.style.animation = `tailWag ${runDuration}s linear infinite`;
+                
+                // Reset hamster position
+                hamster.style.position = 'absolute';
+                hamster.style.bottom = '-115px';
+                
+                // Reset eyes
+                document.querySelectorAll('circle[fill="black"]').forEach(eye => {
+                    eye.style.animation = 'none';
+                });
+            }
+        }
+
+        speedBtn.addEventListener('click', () => {
+            speed = Math.min(speed + 0.5, 10);
+            updateAnimations();
+            speedValue.textContent = speed.toFixed(1);
+            
+            if (!chaosMode) {
+                hue = Math.max(hue - 10, 200);
+                wheel.style.borderColor = `hsl(${hue}, 60%, 60%)`;
+            }
+            
+            speedBtn.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                speedBtn.style.transform = 'translateY(-2px)';
+            }, 100);
+        });
+    </script>
+</body>
+</html>
