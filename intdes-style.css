@@ -1,23 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Rubik+Doodle+Shadow&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
 
-header {
-    border-bottom: 2px solid grey;
-    padding-bottom: 1rem;
-    margin-bottom: 3rem;
-}
-
 body {
     font-family: "Source Code Pro", monospace;
     font-size: 10px;
     display: flex;
     flex-direction: column;
     margin: 3rem 3rem 3rem 3rem;
-    width: auto;
+    width: 100%;
 
     background-color: #252422;
     color: #ccc5b9;
 
 }
+
+header {
+    width: 85%;
+    border-bottom: 2px solid grey;
+    padding-bottom: 1rem;
+    margin-bottom: 3rem;
+
+}
+
+
 
 a {
     color: #eb5e28;
@@ -27,7 +31,7 @@ h1 {
     font-family: "Rubik Doodle Shadow", system-ui;
     line-height: normal;
     margin: 0;
-    font-size: 5rem;
+    font-size: 4.5rem;
     margin: 0;
 
 }
@@ -52,22 +56,25 @@ form {
 
 .flex-2 {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    justify-content: flex-start;
+    align-items: flex-start;
 
     width: 50%;
-    gap: 1rem;
+    gap: 3rem;
+
 }
 
 .flex-2 div {
-    flex: 1;
-
     background-color: #211f1d;
-    padding: 2rem;
-    flex: 1;
-
+    padding: 1rem;
     transition: box-shadow .05s;
+    flex: 1;
 }
+
 .flex-2 div:hover {
-    box-shadow: 0px 0px 10px #c25b32 ;
+    box-shadow: 0px 0px 10px #c25b32;
+}
+
+a:hover {
+    color: #ccc5b9;
 }
