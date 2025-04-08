@@ -91,10 +91,10 @@ a:hover {
     color: #ccc5b9;
 }
 
-@media (max-width:540px) {
+@media (max-width:768px) {
 
     h1 {
-        font-size: 3rem;
+        font-size: 2.5rem;
     }
 
     h2 {
@@ -104,4 +104,5 @@ a:hover {
     h3 {
         font-size: 1.5rem;
     }
+
 }
