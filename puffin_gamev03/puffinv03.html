@@ -153,18 +153,19 @@ canvas{
 
 	screen.style.display = "flex";
 	screen.style.alignItems = "center";
-	screen.style.backgroundColor = "#d8c0ff"; //border color full screen
+	screen.style.backgroundColor = "#00000"; //border color full screen
+	canvas.style.boxShadow = '0 0 30px 10px rgba(50, 49, 58, 1)';
 	canvas.style.margin = "auto";
 
-
+	
 
 	function resizeCanvas()
 	{
 
-    var mult = 32;
-    var csize = Math.floor(512/mult)*mult;
+    var mult = 64;
+    var csize = Math.floor(512/mult)*mult*4;
     if (document.fullscreenElement || document.mozFullScreenElement || document.webkitIsFullScreen || document.msFullscreenElement) {
-        csize = Math.max(mult, Math.min(Math.floor(window.innerWidth/mult)*mult, Math.floor(window.innerHeight/mult)*mult))*1.2;
+        csize = Math.max(mult, Math.min(Math.floor(window.innerWidth/mult)*mult, Math.floor(window.innerHeight/mult)*mult));
     }
     
     canvas.style.width = csize;
@@ -172,15 +173,17 @@ canvas{
     screen.parentNode.style.width = csize;
     
     // Calculate bezel size relative to canvas size
-	var borderSize = Math.max(16, Math.floor(csize / 64));
+	var borderSize = Math.max(64, Math.floor(csize / 32));
     var shadowSize = Math.max(25, Math.floor(csize / 32));
-    var highlightSize = Math.max(8, Math.floor(csize / 64)); // Increased highlight size
+    var highlightSize = Math.max(16, Math.floor(csize / 64)); // Increased highlight size
     var borderRadius = Math.max(25, Math.floor(csize / 32));
     
 	canvas.style.border = borderSize + "px solid rgba(25,25,25)";
 canvas.style.outline = Math.floor(highlightSize/2) + "px solid rgba(50,50,50,0.9)";
 canvas.style.outlineOffset = -Math.floor(borderSize/2) + "px";
 canvas.style.borderRadius = borderRadius + "px";
+
+
     window.focus();
 	}
 
