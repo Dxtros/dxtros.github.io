@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gacha — dextros.net prototype</title>
+
+<!-- ============================================================
+  GACHA MACHINE — quick & dirty prototype
+  Flow: pull lever → dome jiggle → capsule drops → click capsule
+        → halves pop → model-viewer reveal → put it back → reset
+
+  SWAP POINTS (search for "SWAP:")
+  1. SWAP:MODELS   — replace the array with your GLB urls + copy
+  2. SWAP:MACHINE  — replace the SVG with your Blender render PNG
+  3. SWAP:LEVER    — replace with a cut-out lever PNG (same pivot)
+  4. SWAP:CAPSULE  — replace halves with rendered capsule PNGs
+  ============================================================ -->
+
+<script type="module" src="https://cdnjs.cloudflare.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
+<style>
+  :root{
+    /* palette — swap to taste */
+    --ink:#1d2430;        /* room */
+    --ink-2:#252e3d;
+    --shell:#e8442e;      /* machine body */
+    --shell-dk:#b52f1e;
+    --face:#f6efe3;       /* face plate */
+    --glass:#cfe4ea;
+    --cap-top:#ffc93c;    /* capsule */
+    --cap-bot:#f6efe3;
+    --line:#17202b;
+    --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, var(--ink-2), var(--ink) 70%);
+    color:var(--face);
+    font-family:var(--mono);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+
+  /* ---------- stage ---------- */
+  .stage{position:relative;width:min(420px,92vw);user-select:none}
+  .hint{
+    text-align:center;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;opacity:.55;margin-top:18px;
+  }
+
+  /* ---------- machine (SWAP:MACHINE — one PNG replaces this SVG) ---------- */
+  .machine{display:block;width:100%;height:auto;filter:drop-shadow(0 24px 40px rgba(0,0,0,.45))}
+
+  /* dome capsules jiggle on pull */
+  .dome-cap{transform-box:fill-box;transform-origin:center}
+  .jiggle .dome-cap{animation:jig .5s ease-in-out}
+  .jiggle .dome-cap:nth-child(2n){animation-delay:.05s}
+  .jiggle .dome-cap:nth-child(3n){animation-delay:.1s}
+  @keyframes jig{
+    25%{transform:translate(2px,-4px) rotate(8deg)}
+    55%{transform:translate(-2px,1px) rotate(-6deg)}
+    80%{transform:translate(1px,-2px) rotate(3deg)}
+  }
+
+  /* ---------- lever (SWAP:LEVER — absolutely-positioned PNG, same pivot) ---------- */
+  .lever{
+    position:absolute;
+    /* tuned to the SVG below; re-tune when you swap art */
+    right:-7%;top:47%;width:26%;
+    transform-origin:12% 50%;
+    cursor:pointer;transition:transform .12s ease;
+  }
+  .lever:hover{transform:rotate(4deg)}
+  .lever.pulled{animation:pull .7s cubic-bezier(.6,-0.28,.45,1.4)}
+  @keyframes pull{
+    35%{transform:rotate(58deg)}
+    100%{transform:rotate(0deg)}
+  }
+  .lever:focus-visible{outline:3px solid var(--cap-top);outline-offset:4px;border-radius:8px}
+
+  /* ---------- dropped capsule (SWAP:CAPSULE) ---------- */
+  .capsule{
+    position:absolute;left:50%;width:17%;aspect-ratio:1;
+    transform:translateX(-50%);
+    top:56%;               /* start: hidden behind chute */
+    opacity:0;cursor:pointer;z-index:20;
+  }
+  .capsule.drop{animation:drop .9s cubic-bezier(.3,0,.4,1.25) forwards}
+  @keyframes drop{
+    0%{top:56%;opacity:0}
+    12%{opacity:1}
+    70%{top:79.5%}
+    82%{top:77.8%}          /* bounce */
+    100%{top:79.5%;opacity:1}
+  }
+  /* dispense: promoted to fixed, rolls up toward the viewer (JS sets the transform) */
+  .capsule.present{
+    position:fixed;opacity:1;
+    transition:transform 1s cubic-bezier(.25,.6,.3,1);
+    filter:drop-shadow(0 20px 34px rgba(0,0,0,.55));
+  }
+  .cap-inner{position:absolute;inset:0}
+  .cap-inner.wobble{animation:wobble 1.5s ease-in-out infinite;transform-origin:50% 85%}
+  @keyframes wobble{
+    20%{transform:rotate(-9deg)}
+    45%{transform:rotate(7deg)}
+    65%{transform:rotate(-4deg)}
+    80%{transform:rotate(2deg)}
+  }
+  .cap-half{position:absolute;inset:0;transition:transform .5s cubic-bezier(.5,-.4,.4,1),opacity .5s}
+  .cap-half.top{clip-path:inset(0 0 50% 0)}
+  .cap-half.bot{clip-path:inset(50% 0 0 0)}
+  .capsule.open .cap-half.top{transform:translate(-30%,-150%) rotate(-50deg);opacity:0}
+  .capsule.open .cap-half.bot{transform:translate(25%,110%) rotate(35deg);opacity:0}
+
+  /* ---------- reveal overlay ---------- */
+  .reveal{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(20,26,36,.86);backdrop-filter:blur(6px);
+    opacity:0;pointer-events:none;transition:opacity .35s ease;z-index:10;
+  }
+  .reveal.show{opacity:1;pointer-events:auto}
+  .reveal.dim{opacity:1;pointer-events:none}   /* backdrop only: spotlight the capsule */
+  .card{
+    width:min(440px,92vw);text-align:center;opacity:0;
+    transform:translateY(14px);transition:transform .35s ease,opacity .35s ease;
+  }
+  .reveal.show .card{transform:none;opacity:1}
+  .viewer{
+    width:100%;aspect-ratio:1/1;border-radius:16px;
+    background:radial-gradient(circle at 50% 35%, #38445a, #232c3b 75%);
+    border:1px solid rgba(255,255,255,.12);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+  }
+  model-viewer{width:100%;height:100%;--poster-color:transparent}
+
+  /* CSS fallback object if the GLB can't load (offline / blocked url) */
+  .fallback{width:38%;aspect-ratio:1;position:relative;transform-style:preserve-3d;animation:spin 6s linear infinite}
+  .fallback div{position:absolute;inset:0;border-radius:22%;border:3px solid var(--cap-top)}
+  .fallback div:nth-child(2){transform:rotateY(60deg)}
+  .fallback div:nth-child(3){transform:rotateY(120deg)}
+  @keyframes spin{to{transform:rotateY(360deg)}}
+
+  .rarity{
+    display:inline-block;margin-top:18px;padding:4px 12px;border-radius:999px;
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    border:1px solid currentColor;
+  }
+  .card h2{font-size:22px;margin-top:10px;letter-spacing:.02em}
+  .card p{font-size:13px;line-height:1.6;opacity:.75;margin-top:8px}
+  .again{
+    margin-top:22px;font:inherit;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink);background:var(--cap-top);border:none;border-radius:999px;
+    padding:12px 26px;cursor:pointer;
+  }
+  .again:hover{filter:brightness(1.07)}
+  .again:focus-visible{outline:3px solid var(--face);outline-offset:3px}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <!-- SWAP:MACHINE — replace this whole <svg> with:
+       <img class="machine" src="machine-render.png" alt="Capsule machine">
+       (render your Blender machine ~1200px tall, transparent bg)     -->
+  <svg class="machine" id="machineSvg" viewBox="0 0 300 420" aria-label="Capsule machine">
+    <!-- body -->
+    <rect x="45" y="180" width="210" height="215" rx="18" fill="var(--shell)" stroke="var(--line)" stroke-width="5"/>
+    <rect x="45" y="180" width="210" height="26" fill="var(--shell-dk)" stroke="var(--line)" stroke-width="5"/>
+    <!-- face plate -->
+    <rect x="72" y="222" width="156" height="88" rx="12" fill="var(--face)" stroke="var(--line)" stroke-width="5"/>
+    <circle cx="150" cy="266" r="20" fill="none" stroke="var(--line)" stroke-width="5"/>
+    <rect x="144" y="258" width="12" height="16" rx="3" fill="var(--line)"/>
+    <!-- chute + tray -->
+    <rect x="112" y="322" width="76" height="52" rx="10" fill="var(--ink)" stroke="var(--line)" stroke-width="5"/>
+    <rect x="104" y="366" width="92" height="12" rx="6" fill="var(--shell-dk)" stroke="var(--line)" stroke-width="4"/>
+    <!-- glass dome -->
+    <path d="M60 180 Q60 60 150 60 Q240 60 240 180 Z" fill="var(--glass)" opacity=".9" stroke="var(--line)" stroke-width="5"/>
+    <!-- capsules inside the dome (the jiggle signature) -->
+    <g id="domeCaps">
+      <circle class="dome-cap" cx="105" cy="150" r="17" fill="var(--cap-top)" stroke="var(--line)" stroke-width="4"/>
+      <circle class="dome-cap" cx="145" cy="160" r="17" fill="#7fd1c0" stroke="var(--line)" stroke-width="4"/>
+      <circle class="dome-cap" cx="185" cy="148" r="17" fill="#f08bb4" stroke="var(--line)" stroke-width="4"/>
+      <circle class="dome-cap" cx="125" cy="122" r="15" fill="#8fa8f2" stroke="var(--line)" stroke-width="4"/>
+      <circle class="dome-cap" cx="168" cy="118" r="15" fill="var(--cap-top)" stroke="var(--line)" stroke-width="4"/>
+      <circle class="dome-cap" cx="147" cy="94" r="13" fill="#f08bb4" stroke="var(--line)" stroke-width="4"/>
+    </g>
+    <!-- glass highlight -->
+    <path d="M84 160 Q86 92 138 74" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".55"/>
+    <!-- cap -->
+    <rect x="120" y="38" width="60" height="24" rx="9" fill="var(--shell)" stroke="var(--line)" stroke-width="5"/>
+  </svg>
+
+  <!-- SWAP:LEVER — replace with <img class="lever" src="lever.png">, keep transform-origin near its hinge -->
+  <svg class="lever" id="lever" viewBox="0 0 90 40" role="button" tabindex="0" aria-label="Pull the lever">
+    <rect x="4" y="14" width="62" height="12" rx="6" fill="var(--shell-dk)" stroke="var(--line)" stroke-width="4"/>
+    <circle cx="70" cy="20" r="14" fill="var(--cap-top)" stroke="var(--line)" stroke-width="4"/>
+  </svg>
+
+  <!-- SWAP:CAPSULE — replace the two <svg> halves with two PNGs of your rendered capsule -->
+  <div class="capsule" id="capsule" role="button" tabindex="-1" aria-label="Crack the capsule open">
+    <div class="cap-inner">
+      <svg class="cap-half top" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="var(--cap-top)" stroke="var(--line)" stroke-width="3"/></svg>
+      <svg class="cap-half bot" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="var(--cap-bot)" stroke="var(--line)" stroke-width="3"/></svg>
+    </div>
+  </div>
+
+  <p class="hint" id="hint">Pull the lever</p>
+</div>
+
+<!-- reveal -->
+<div class="reveal" id="reveal">
+  <div class="card">
+    <div class="viewer" id="viewer"></div>
+    <span class="rarity" id="rarity"></span>
+    <h2 id="mName"></h2>
+    <p id="mDesc"></p>
+    <button class="again" id="again">Put it back</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SWAP:MODELS — your scans. url = GLB on your own server, e.g.
+   https://dextros.net/models/whatever.glb (gltfpack'd, 1–3MB).
+   The Astronaut url below is Google's demo GLB so the flow
+   demos out of the box; if it can't load you get a CSS fallback.
+   ============================================================ */
+const MODELS = [
+  { url:"https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+    name:"Placeholder Scan 01", rarity:"Common",  color:"#7fd1c0",
+    desc:"Swap me: point url at one of your 3D scans and rewrite this blurb." },
+  { url:"https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+    name:"Placeholder Scan 02", rarity:"Rare",    color:"#8fa8f2",
+    desc:"Each entry is one capsule prize — url, name, rarity, description." },
+  { url:"https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+    name:"Placeholder Scan 03", rarity:"Legendary", color:"#ffc93c",
+    desc:"Add as many as you like. Random pick happens on lever pull." },
+];
+
+const $ = id => document.getElementById(id);
+const lever=$('lever'), capsule=$('capsule'), stage=$('stage'),
+      reveal=$('reveal'), viewer=$('viewer'), hint=$('hint');
+
+let busy=false, ready=false, prize=null, mv=null;
+const inner = () => capsule.querySelector('.cap-inner');
+
+function pullLever(){
+  if(busy) return; busy=true;
+  hint.textContent = "…";
+
+  // pick prize now → GLB loads while the drop/roll animations play (loading cover)
+  prize = MODELS[Math.floor(Math.random()*MODELS.length)];
+  preload(prize.url);
+
+  lever.classList.add('pulled');
+  stage.classList.add('jiggle');
+  setTimeout(()=>stage.classList.remove('jiggle'), 600);
+
+  setTimeout(()=>{
+    capsule.classList.add('drop');
+    capsule.addEventListener('animationend', function onDrop(e){
+      if(e.animationName!=='drop') return;
+      capsule.removeEventListener('animationend', onDrop);
+      setTimeout(presentCapsule, 350);   // beat: land in tray, then dispense
+    });
+  }, 380);
+}
+
+/* dispense: promote to fixed coords, then roll up toward the viewer */
+function presentCapsule(){
+  const r = capsule.getBoundingClientRect();
+  Object.assign(capsule.style,{
+    left:r.left+'px', top:r.top+'px',
+    width:r.width+'px', height:r.height+'px',
+    transform:'none'
+  });
+  capsule.classList.remove('drop');
+  capsule.classList.add('present');
+  reveal.classList.add('dim');           // dim the room, spotlight the capsule
+  void capsule.offsetWidth;              // force reflow so the transition runs
+
+  const size = Math.min(280, window.innerWidth*0.6);
+  const s  = size / r.width;
+  const dx = window.innerWidth/2      - (r.left + r.width/2);
+  const dy = window.innerHeight*0.45  - (r.top  + r.height/2);
+  capsule.style.transform =
+    `translate(${dx}px,${dy}px) rotate(1080deg) scale(${s})`;   // the "roll"
+
+  capsule.addEventListener('transitionend', function onRoll(e){
+    if(e.propertyName!=='transform') return;
+    capsule.removeEventListener('transitionend', onRoll);
+    inner().classList.add('wobble');
+    capsule.tabIndex = 0; capsule.focus();
+    ready = true;
+    hint.textContent = "Crack it open";
+  });
+}
+
+function openCapsule(){
+  if(!ready) return; ready=false;
+  inner().classList.remove('wobble');
+  capsule.classList.add('open');
+  showReveal();
+  setTimeout(()=>{
+    reveal.classList.remove('dim');      // dim's pointer-events:none would block the card
+    reveal.classList.add('show');
+  }, 300);
+  setTimeout(()=>{ capsule.style.visibility='hidden'; }, 550);
+}
+
+function preload(url){
+  viewer.innerHTML = "";
+  mv = document.createElement('model-viewer');
+  mv.src = url;
+  mv.setAttribute('camera-controls','');
+  mv.setAttribute('auto-rotate','');
+  mv.setAttribute('shadow-intensity','1');
+  mv.setAttribute('disable-zoom','');
+  mv.addEventListener('error', useFallback, {once:true});
+  // if model-viewer itself failed to register (offline), fall back too
+  if(!customElements.get('model-viewer')) return useFallback();
+  viewer.appendChild(mv);
+}
+
+function useFallback(){
+  viewer.innerHTML =
+    '<div class="fallback" aria-label="Model placeholder"><div></div><div></div><div></div></div>';
+}
+
+function showReveal(){
+  $('rarity').textContent = prize.rarity;
+  $('rarity').style.color = prize.color;
+  $('mName').textContent = prize.name;
+  $('mDesc').textContent = prize.desc;
+  $('again').focus();
+}
+
+function reset(){
+  reveal.classList.remove('show','dim');
+  capsule.classList.remove('drop','open','present');
+  capsule.removeAttribute('style');      // clears fixed coords + visibility
+  inner().classList.remove('wobble');
+  capsule.tabIndex = -1;
+  lever.classList.remove('pulled');
+  hint.textContent = "Pull the lever";
+  ready = false; busy = false;
+}
+
+lever.addEventListener('click', pullLever);
+capsule.addEventListener('click', openCapsule);
+$('again').addEventListener('click', reset);
+document.addEventListener('keydown', e=>{
+  if(e.code==='Space' && !busy){ e.preventDefault(); pullLever(); }
+  else if(e.code==='Enter' && ready) openCapsule();
+  else if(e.code==='Escape' && reveal.classList.contains('show')) reset();
+});
+</script>
+</body>
+</html>
